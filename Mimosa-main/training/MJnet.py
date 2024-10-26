@@ -329,13 +329,13 @@ def kmers_predict(kmers,mirna,model):
 
 
 
-def perform_test(pathfile,stepsize):
+def perform_test(pathfile, stepsize, model_type):
 
     test = read_test(pathfile)
     y_true = []
     y_pred = []
 
-    model = torch.load('model_mimosa.pth')
+    model = torch.load(model_type)
     model = model.to(device)
     print('个数',len(test))
 
