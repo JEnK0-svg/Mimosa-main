@@ -135,11 +135,12 @@ def Smith_Waterman(seq1 ,seq2):
     wc4 = ['AU', 'UA', 'GC', 'CG']  # Watson-Crick碱基对
     w2 = ['GU', 'UG']  # Wobble碱基对
 
-    match_score = {'AU': 1, 'UA': 1, 'CG': 1, 'GC': 1,  # Watson-Crick配对得分为1
-               'GU': 0, 'UG': 0,  # Wobble配对得分为0
-               # 其他组合的错配得分为-1
-               'AC': -1, 'CA': -1, 'AG': -1, 'UC': -1, 'GA': -1, 'AA': -1, 
-               'CC': -1, 'GG': -1, 'UU': -1, 'CU': -1}
+    match_score = {'AU': 1, 'UA': 1, 'CG': 1, 'GC': 1,
+                   'GU': 0, 'UG': 0, 'AC': -1, 'CA': -1,
+                   'AG': -1, 'UC': -1, 'GA': -1, 'AA': -1,
+                   'CC': -1, 'GG': -1, 'UU': -1, 'CU': -1,
+                   'AX':-1,'XA':-1,'XC':-1,'CX':-1,
+                   'GX':-1,'XG':-1,'UX':-1,'XU':-1}
 
 
     position = {'stop': 0, 'left': 1, 'up': 2, 'left_up': 3}
@@ -306,7 +307,7 @@ def get_interaction_map_for_test_short(mirna,mrna):
 def decision_for_whole(data_all):
     '''define if at least one segment is predicted as functional,
     the whole mRNA sequence then will be classified as functional'''
-    probabilities = [i for i in data_all]
+    probabilities = [i[0] for i in data_all]
     count = len([i for i in probabilities if i > 0.5])
     if count >= 1:
         return 1

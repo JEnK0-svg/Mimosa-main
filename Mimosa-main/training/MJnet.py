@@ -301,8 +301,8 @@ def kmers_predict(kmers,mirna,model):
         return 0
     else:
         for i in kmers:
-            fea_1 = get_embedding(i)
-            fea_2 = get_embedding(mirna)
+            fea_1 = get_onehot_embedding(i)
+            fea_2 = get_onehot_embedding(mirna)
             if 'X' in i:
                 pairing_m, pairing_mi = get_interaction_map_for_test_short(mirna, i)
             else:
@@ -314,11 +314,11 @@ def kmers_predict(kmers,mirna,model):
             fea4.append(pairing_mi)
 
 
-        fea1 = torch.tensor(fea1, dtype=torch.long).to(device)
-        fea2 = torch.tensor(fea2).to(device)
-        fea3 = torch.tensor(fea3).to(device)
-        fea4 = torch.tensor(fea4).to(device)
-
+        fea1 = torch.tensor(fea1, dtype=torch.float32).to(device)
+        fea2 = torch.tensor(fea2, dtype=torch.float32).to(device)
+        fea3 = torch.tensor(fea3, dtype=torch.float32).to(device)
+        fea4 = torch.tensor(fea4, dtype=torch.float32).to(device)
+        
         model = model.to(device)
         pros = model(fea1, fea2, fea3, fea4).detach().cpu().numpy().tolist()
         pppp = decision_for_whole(pros)
