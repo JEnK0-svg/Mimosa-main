@@ -260,7 +260,7 @@ def perform_train(filepath):
     # criterion = nn.CrossEntropyLoss()
     criterion = nn.BCEWithLogitsLoss()
 
-    optimizer = optim.Adam(model.parameters(), lr=learningrate,weight_decay=1e-5) #,weight_decay=1e-5
+    optimizer = optim.Adam(model.parameters(), lr=learningrate,weight_decay=1e-4) #1、1e-5 2、1e-4
 
     best_val_loss = 1
     train_loss = []
@@ -311,15 +311,15 @@ def kmers_predict(kmers,mirna,model):
         return 0
     else:
         for i in kmers:
-            fea_1 = get_onehot_embedding(i)
-            fea_2 = get_onehot_embedding(mirna)
+            onehot_m = get_onehot_embedding(i)
+            onehot_mi = get_onehot_embedding(mirna)
             if 'X' in i:
                 pairing_m, pairing_mi = get_interaction_map_for_test_short(mirna, i)
             else:
                 pairing_m, pairing_mi = get_interaction_map_for_test(mirna, i)
 
-            onehot_m.append(fea_1)
-            onehot_mi.append(fea_2)
+            onehot_m.append(onehot_m)
+            onehot_mi.append(onehot_mi)
             pairing_m.append(pairing_m)
             pairing_mi.append(pairing_mi)
 
