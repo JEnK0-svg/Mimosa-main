@@ -37,14 +37,14 @@ class myDataset(Dataset):
         
         pairing_m, pairing_mi = get_interaction_map(self.mirna,self.reverse_mrna)
 
-        ND_m = to_ND(self.reverse_mrna)
-        ND_mi = to_ND(self.mirna)
+        # ND_m = to_ND(self.reverse_mrna)
+        # ND_mi = to_ND(self.mirna)
 
-        C2_m = to_C2(self.reverse_mrna)
-        C2_mi = to_C2(self.mirna)
+        # C2_m = to_C2(self.reverse_mrna)
+        # C2_mi = to_C2(self.mirna)
 
-        NCP_m = to_NCP(self.reverse_mrna)
-        NCP_mi = to_NCP(self.mirna)
+        # NCP_m = to_NCP(self.reverse_mrna)
+        # NCP_mi = to_NCP(self.mirna)
 
         onehot_m  = torch.tensor(onehot_m, dtype=torch.float32).to(device)
         onehot_mi = torch.tensor(onehot_mi, dtype=torch.float32).to(device)
@@ -246,7 +246,7 @@ def perform_train(filepath):
     # train positive: 26995, train negative: 27469, val positive: 2193, val negative: 2136
     batchsize = 128
     learningrate = 1e-4
-    epochs = 40
+    epochs = 30
     train, val = read_data(filepath)
 
     train_dataset = myDataset(train)
@@ -256,11 +256,11 @@ def perform_train(filepath):
     
 
     # model = Transformer(input_size=5, hidden_size=64, num_layers=16, num_heads=8, dropout=0.1, output_size=2).to(device)
-    model = MJnet(input_size=5, hidden_size=128, num_layers=2, num_heads=8, dropout=0.1, output_size=1).to(device)
+    model = MJnet(input_size=5, hidden_size=128, num_layers=2, num_heads=8, dropout=0.2, output_size=1).to(device)
     # criterion = nn.CrossEntropyLoss()
     criterion = nn.BCEWithLogitsLoss()
 
-    optimizer = optim.Adam(model.parameters(), lr=learningrate,weight_decay=1e-4) #1、1e-5 2、1e-4
+    optimizer = optim.Adam(model.parameters(), lr=learningrate,weight_decay=1e-5) #1、1e-5 2、1e-4
 
     best_val_loss = 1
     train_loss = []
@@ -303,10 +303,10 @@ def get_cts(rmrna, stepsize):
 def kmers_predict(kmers,mirna,model):
 
     mirna = mirna + 'X'*(26-len(mirna))
-    onehot_m = []
-    onehot_mi = []
-    pairing_m = []
-    pairing_mi = []
+    fea_m = []
+    fea_mi = []
+    fea_pairing_m = []
+    fea_pairing_mi = []
     if len(kmers) == 0:
         return 0
     else:
@@ -318,19 +318,19 @@ def kmers_predict(kmers,mirna,model):
             else:
                 pairing_m, pairing_mi = get_interaction_map_for_test(mirna, i)
 
-            onehot_m.append(onehot_m)
-            onehot_mi.append(onehot_mi)
-            pairing_m.append(pairing_m)
-            pairing_mi.append(pairing_mi)
+            fea_m.append(onehot_m)
+            fea_mi.append(onehot_mi)
+            fea_pairing_m.append(pairing_m)
+            fea_pairing_mi.append(pairing_mi)
 
 
-        onehot_m = torch.tensor(onehot_m, dtype=torch.float32).to(device)
-        onehot_mi = torch.tensor(onehot_mi, dtype=torch.float32).to(device)
-        pairing_m = torch.tensor(pairing_m, dtype=torch.float32).to(device)
-        pairing_mi = torch.tensor(pairing_mi, dtype=torch.float32).to(device)
+        fea_m = torch.tensor(np.array(fea_m), dtype=torch.float32).to(device)
+        fea_mi = torch.tensor(np.array(fea_mi), dtype=torch.float32).to(device)
+        fea_pairing_m = torch.tensor(np.array(fea_pairing_m), dtype=torch.float32).to(device)
+        fea_pairing_mi = torch.tensor(np.array(fea_pairing_mi), dtype=torch.float32).to(device)
         
         model = model.to(device)
-        pros = model(onehot_m, onehot_mi, pairing_m, pairing_mi).detach().cpu().numpy().tolist()
+        pros = model(fea_m, fea_mi, fea_pairing_m, fea_pairing_mi).detach().cpu().numpy().tolist()
         pppp = decision_for_whole(pros)
 
         return pppp
