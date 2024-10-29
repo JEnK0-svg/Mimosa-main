@@ -114,6 +114,7 @@ def get_embedding(rna):
 def get_onehot_embedding(rna):
     '''Generate one-hot encoding for RNA sequence using a one-hot dictionary.'''
     # 构建一个直接映射到One-Hot编码的词典
+    onehot_map = []
     onehot_dict = {
         'A': [1, 0, 0, 0],
         'C': [0, 1, 0, 0],
@@ -124,9 +125,61 @@ def get_onehot_embedding(rna):
     
     # 根据词典将每个碱基映射为对应的One-Hot编码
     onehot_map = [onehot_dict[base] for base in rna]
-    
+
     return np.array(onehot_map)
 
+def to_C2(rna):
+   
+    C2_map = []
+    C2_dict = {
+        'A': [0, 0],
+        'C': [1, 1],
+        'G': [1, 0],
+        'U': [0, 1],
+    }
+    C2_map = [C2_dict[base] for base in rna]
+    
+    return np.array(C2_map)
+
+def to_NCP(rna):
+    NCP_map = []
+    NCP_dict = {
+        'A': [1, 1, 1], 
+        'C': [0, 1, 0], 
+        'G': [1, 0, 0], 
+        'U': [0, 0, 1]
+        }
+    
+    NCP_map = [NCP_dict[base] for base in rna]  
+    return np.array(NCP_map)
+
+def to_ND(rna):
+    ND_map = []
+    for base in rna:
+        base_a = base_c = base_u = base_g = base_sum = 0
+        for base in rna:
+
+            if base == "A":
+                base_a += 1
+                base_sum += 1
+                Di = base_a / base_sum
+
+            elif base == "C":
+                base_c += 1
+                base_sum += 1
+                Di = base_c / base_sum
+
+            elif base == "U":
+                base_c += 1
+                base_sum += 1
+                Di = base_c / base_sum
+            
+            elif base == "G":
+                base_c += 1
+                base_sum += 1
+                Di = base_c / base_sum
+            ND_map.append(Di)
+    return np.array(ND_map)
 
 
 def Smith_Waterman(seq1 ,seq2):
