@@ -31,10 +31,20 @@ class myDataset(Dataset):
         self.mirna, self.mrna, self.label = self.sample
         self.reverse_mrna = reverse_seq(self.mrna)
         self.mirna = self.mirna + 'X' * (26 - len(self.mirna))
+        #数据集编码
         onehot_m = get_onehot_embedding(self.reverse_mrna)
         onehot_mi = get_onehot_embedding(self.mirna)
         
         pairing_m, pairing_mi = get_interaction_map(self.mirna,self.reverse_mrna)
+
+        ND_m = to_ND(self.reverse_mrna)
+        ND_mi = to_ND(self.mirna)
+
+        C2_m = to_C2(self.reverse_mrna)
+        C2_mi = to_C2(self.mirna)
+
+        NCP_m = to_NCP(self.reverse_mrna)
+        NCP_mi = to_NCP(self.mirna)
 
         onehot_m  = torch.tensor(onehot_m, dtype=torch.float32).to(device)
         onehot_mi = torch.tensor(onehot_mi, dtype=torch.float32).to(device)
@@ -43,10 +53,10 @@ class myDataset(Dataset):
 
         label = torch.tensor(self.label, dtype=torch.float32).to(device)
         
-        return {'fea1': onehot_m,
-                'fea2': onehot_mi,
-                'fea3': pairing_m,
-                'fea4': pairing_mi,
+        return {'onehot_m': onehot_m,
+                'onehot_mi': onehot_mi,
+                'pairing_m': pairing_m,
+                'pairing_mi': pairing_mi,
                 'label': label,
                }
 
@@ -155,7 +165,7 @@ def Deep_train(model, dataloader, optimizer, criterion):
 
     for i, data in enumerate(tqdm(dataloader, desc="Training", leave=False)):
         counter += 1
-        features1, features2, features3, features4, target = data['fea1'], data['fea2'], data['fea3'], data['fea4'], data['label']
+        features1, features2, features3, features4, target = data['onehot_m'], data['onehot_mi'], data['pairing_m'], data['pairing_mi'], data['label']
         
         # 将特征和标签移动到与模型相同的设备
         features1 = features1.to(device)
@@ -185,7 +195,7 @@ def Deep_validate(model, dataloader, criterion):
     with torch.no_grad():
         for i, data in enumerate(tqdm(dataloader, desc="Validating", leave=False)):
             counter += 1
-            features1, features2, features3, features4, target = data['fea1'], data['fea2'], data['fea3'], data['fea4'],data['label']
+            features1, features2, features3, features4, target = data['onehot_m'], data['onehot_mi'], data['pairing_m'], data['pairing_mi'],data['label']
             
             # 将特征和标签移动到与模型相同的设备
             features1 = features1.to(device)
@@ -293,10 +303,10 @@ def get_cts(rmrna, stepsize):
 def kmers_predict(kmers,mirna,model):
 
     mirna = mirna + 'X'*(26-len(mirna))
-    fea1 = []
-    fea2 = []
-    fea3 = []
-    fea4 = []
+    onehot_m = []
+    onehot_mi = []
+    pairing_m = []
+    pairing_mi = []
     if len(kmers) == 0:
         return 0
     else:
@@ -308,19 +318,19 @@ def kmers_predict(kmers,mirna,model):
             else:
                 pairing_m, pairing_mi = get_interaction_map_for_test(mirna, i)
 
-            fea1.append(fea_1)
-            fea2.append(fea_2)
-            fea3.append(pairing_m)
-            fea4.append(pairing_mi)
+            onehot_m.append(fea_1)
+            onehot_mi.append(fea_2)
+            pairing_m.append(pairing_m)
+            pairing_mi.append(pairing_mi)
 
 
-        fea1 = torch.tensor(fea1, dtype=torch.float32).to(device)
-        fea2 = torch.tensor(fea2, dtype=torch.float32).to(device)
-        fea3 = torch.tensor(fea3, dtype=torch.float32).to(device)
-        fea4 = torch.tensor(fea4, dtype=torch.float32).to(device)
+        onehot_m = torch.tensor(onehot_m, dtype=torch.float32).to(device)
+        onehot_mi = torch.tensor(onehot_mi, dtype=torch.float32).to(device)
+        pairing_m = torch.tensor(pairing_m, dtype=torch.float32).to(device)
+        pairing_mi = torch.tensor(pairing_mi, dtype=torch.float32).to(device)
         
         model = model.to(device)
-        pros = model(fea1, fea2, fea3, fea4).detach().cpu().numpy().tolist()
+        pros = model(onehot_m, onehot_mi, pairing_m, pairing_mi).detach().cpu().numpy().tolist()
         pppp = decision_for_whole(pros)
 
         return pppp
