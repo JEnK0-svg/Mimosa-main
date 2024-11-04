@@ -245,7 +245,7 @@ def Deep_validate(model, dataloader, criterion):
 def perform_train(filepath):
     # train positive: 26995, train negative: 27469, val positive: 2193, val negative: 2136
     batchsize = 128
-    learningrate = 1e-4
+    learningrate = 1e-5
     epochs = 30
     train, val = read_data(filepath)
 
@@ -277,6 +277,9 @@ def perform_train(filepath):
         if valid_epoch_loss < best_val_loss:
             best_val_loss = valid_epoch_loss
             torch.save(model,'model_concate_{}.pth'.format(epoch))
+        if epoch == epochs -1:
+            torch.save(model,'model_final.pth')
+
 
 
 

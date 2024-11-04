@@ -136,6 +136,7 @@ def to_C2(rna):
         'C': [1, 1],
         'G': [1, 0],
         'U': [0, 1],
+        'X': [-1, -1]
     }
     C2_map = [C2_dict[base] for base in rna]
     
@@ -147,7 +148,8 @@ def to_NCP(rna):
         'A': [1, 1, 1], 
         'C': [0, 1, 0], 
         'G': [1, 0, 0], 
-        'U': [0, 0, 1]
+        'U': [0, 0, 1],
+        'X': [0, 0, 0]
         }
     
     NCP_map = [NCP_dict[base] for base in rna]  
@@ -170,14 +172,17 @@ def to_ND(rna):
                 Di = base_c / base_sum
 
             elif base == "U":
-                base_c += 1
+                base_u += 1
                 base_sum += 1
-                Di = base_c / base_sum
+                Di = base_u / base_sum
             
             elif base == "G":
-                base_c += 1
+                base_g += 1
                 base_sum += 1
-                Di = base_c / base_sum
+                Di = base_g / base_sum
+            
+            elif base == "X":
+                Di = 0
             ND_map.append(Di)
     return np.array(ND_map)
 
