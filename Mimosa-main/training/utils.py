@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.metrics import confusion_matrix
-
+import torch
 
 
 # def read_data(filepath):
@@ -358,10 +358,14 @@ def get_interaction_map_for_test_short(mirna,mrna):
     return map_m, map_mi
 
 
+def input_preprocess(seq, device):
+    assert type(seq) == np.ndarray
+    seq = torch.tensor(seq, dtype = torch.float32).to(device)
+    return seq
 
-
-
-
+def encoder(mirna, mrna, device):
+    assert mirna == 26, mrna == 40
+    
 def decision_for_whole(data_all):
     '''define if at least one segment is predicted as functional,
     the whole mRNA sequence then will be classified as functional'''
