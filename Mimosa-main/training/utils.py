@@ -157,33 +157,33 @@ def to_NCP(rna):
 
 def to_ND(rna):
     ND_map = []
+    base_a = base_c = base_u = base_g = base_sum = 0
     for base in rna:
-        base_a = base_c = base_u = base_g = base_sum = 0
-        for base in rna:
+        Di = 0.0
+        if base == "A":
+            base_a += 1
+            base_sum += 1
+            Di = base_a / base_sum
 
-            if base == "A":
-                base_a += 1
-                base_sum += 1
-                Di = base_a / base_sum
-
-            elif base == "C":
+        elif base == "C":
                 base_c += 1
                 base_sum += 1
                 Di = base_c / base_sum
 
-            elif base == "U":
-                base_u += 1
-                base_sum += 1
-                Di = base_u / base_sum
+        elif base == "U":
+            base_u += 1
+            base_sum += 1
+            Di = base_u / base_sum
             
-            elif base == "G":
-                base_g += 1
-                base_sum += 1
-                Di = base_g / base_sum
+        elif base == "G":
+            base_g += 1
+            base_sum += 1
+            Di = base_g / base_sum
             
-            elif base == "X":
-                Di = 0
-            ND_map.append(Di)
+        elif base == "X":
+            Di = 0.0
+
+        ND_map.append(Di)
     return np.array(ND_map)
 
 

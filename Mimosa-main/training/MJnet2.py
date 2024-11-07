@@ -48,6 +48,9 @@ class myDataset(Dataset):
 
         onehot_m  = torch.tensor(onehot_m, dtype=torch.float32).to(device)
         onehot_mi = torch.tensor(onehot_mi, dtype=torch.float32).to(device)
+        
+        # NCP_m = torch.tensor(NCP_m, dtype=torch.float32).to(device)
+        # NCP_mi = torch.tensor(NCP_mi, dtype=torch.float32).to(device)
 
         pairing_m = torch.tensor(pairing_m, dtype=torch.float32).to(device)
         pairing_mi = torch.tensor(pairing_mi, dtype=torch.float32).to(device)
@@ -57,8 +60,11 @@ class myDataset(Dataset):
 
         label = torch.tensor(self.label, dtype=torch.float32).to(device)
         
-        return {'onehot_m': onehot_m,
+        return {
+                'onehot_m': onehot_m,
                 'onehot_mi': onehot_mi,
+                # 'NCP_m' : NCP_m,
+                # 'NCP_mi' : NCP_mi,
                 'ND_m' : ND_m,
                 'ND_mi' : ND_mi,
                 'pairing_m': pairing_m,
@@ -71,22 +77,23 @@ class MJnet(nn.Module):
         super(MJnet, self).__init__()
         
         # 使用双向GRU（输入维度加上pairing特征，共5维）
-        self.gru_m = nn.GRU(input_size, hidden_size, num_layers, dropout=dropout, bidirectional=True, batch_first=True)
-        self.gru_mi = nn.GRU(input_size, hidden_size, num_layers, dropout=dropout, bidirectional=True, batch_first=True)
+        self.gru_m = nn.GRU(input_size, hidden_size, num_layers,  dropout=dropout, bidirectional=True, batch_first=True)
+        self.gru_mi = nn.GRU(input_size, hidden_size, num_layers,  dropout=dropout, bidirectional=True, batch_first=True)
 
         # Cross attention mechanism (hidden_size * 2 due to bidirectional GRU)
         self.cross_attention = nn.MultiheadAttention(hidden_size * 2, num_heads, dropout=dropout)
 
+        
         # Fully connected layers for final classification
         self.fc1 = nn.Linear(40, 16)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(0.1)
         self.batch_norm1 = nn.BatchNorm1d(16)
         self.fc2 = nn.Linear(16, output_size)
 
     def forward(self, onehot_m, onehot_mi, pairing_m, pairing_mi, ND_m, ND_mi):
         # 将pairing特征与one-hot编码拼接，形成5维输入 (4维one-hot + 1维pairing)
-        m_input = torch.cat((onehot_m, ND_m, pairing_m.unsqueeze(-1)), dim=-1)  # (batch_size, seq_len, 5)
-        mi_input = torch.cat((onehot_mi, ND_mi, pairing_mi.unsqueeze(-1)), dim=-1)
+        m_input = torch.cat((onehot_m, ND_m.unsqueeze(-1), pairing_m.unsqueeze(-1)), dim=-1)  # (batch_size, seq_len, 5)
+        mi_input = torch.cat((onehot_mi, ND_mi.unsqueeze(-1), pairing_mi.unsqueeze(-1)), dim=-1)
 
         # Bi-directional GRU Encoder
         m_emb, _ = self.gru_m(m_input)  # Output shape: (batch_size, seq_len, 2 * hidden_size)
@@ -185,7 +192,7 @@ def Deep_train(model, dataloader, optimizer, criterion):
         target = target.to(device)
 
         target = target.unsqueeze(1)
-        outputs = model(features1, features2, features3, features4, features5, features6).to(device)
+        outputs = model(features1, features2, features5, features6, features3, features4).to(device)
         loss = criterion(outputs,target)
         train_loss += loss.item()
         optimizer.zero_grad()
@@ -219,7 +226,7 @@ def Deep_validate(model, dataloader, criterion):
             target = target.to(device)
             target = target.unsqueeze(1)
 
-            outputs = model(features1, features2,features3,features4).to(device)
+            outputs = model(features1, features2, features5, features6, features3, features4).to(device)
             loss = criterion(outputs,target)
 
             val_loss += loss.item()
@@ -258,9 +265,9 @@ def Deep_validate(model, dataloader, criterion):
 
 def perform_train(filepath):
     # train positive: 26995, train negative: 27469, val positive: 2193, val negative: 2136
-    batchsize = 128
-    learningrate = 1e-5
-    epochs = 30
+    batchsize = 256
+    learningrate = 1e-4
+    epochs = 40
     train, val = read_data(filepath)
 
     train_dataset = myDataset(train)
@@ -270,7 +277,7 @@ def perform_train(filepath):
     
 
     # model = Transformer(input_size=5, hidden_size=64, num_layers=16, num_heads=8, dropout=0.1, output_size=2).to(device)
-    model = MJnet(input_size=6, hidden_size=128, num_layers=2, num_heads=8, dropout=0.2, output_size=1).to(device)
+    model = MJnet(input_size = 6, hidden_size = 128, num_layers = 2, num_heads = 8, dropout = 0.3, output_size=1).to(device)
     # criterion = nn.CrossEntropyLoss()
     criterion = nn.BCEWithLogitsLoss()
 
@@ -333,6 +340,8 @@ def kmers_predict(kmers,mirna,model):
         for i in kmers:
             onehot_m = get_onehot_embedding(i)
             onehot_mi = get_onehot_embedding(mirna)
+            # NCP_m = to_NCP(i)
+            # NCP_mi = to_NCP(mirna)
             if 'X' in i:
                 pairing_m, pairing_mi = get_interaction_map_for_test_short(mirna, i)
             else:
@@ -340,6 +349,8 @@ def kmers_predict(kmers,mirna,model):
             ND_m = to_ND(i)
             ND_mi = to_ND(mirna)
 
+            # fea_m.append(NCP_m)
+            # fea_mi.append(NCP_mi)
             fea_m.append(onehot_m)
             fea_mi.append(onehot_mi)
             fea_pairing_m.append(pairing_m)
@@ -355,7 +366,7 @@ def kmers_predict(kmers,mirna,model):
         fea1_mi = torch.tensor(np.array(fea1_mi), dtype=torch.float32).to(device)
 
         model = model.to(device)
-        pros = model(fea_m, fea_mi, fea_pairing_m, fea_pairing_mi, fea1_m, fea1_mi).detach().cpu().numpy().tolist()
+        pros = model(fea_m, fea_mi, fea1_m, fea1_mi, fea_pairing_m, fea_pairing_mi ).detach().cpu().numpy().tolist()
         pppp = decision_for_whole(pros)
 
         return pppp
@@ -384,7 +395,7 @@ def perform_test(pathfile, stepsize, model_type):
         reverse_mrna = reverse_seq(mrna)
         y_true.append(fasta[2])
 
-
+ 
         kmers = get_cts(reverse_mrna,stepsize)
 
         if kmers is None:
