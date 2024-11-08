@@ -32,39 +32,44 @@ class myDataset(Dataset):
         self.reverse_mrna = reverse_seq(self.mrna)
         self.mirna = self.mirna + 'X' * (26 - len(self.mirna))
         #数据集编码
-        onehot_m = get_onehot_embedding(self.reverse_mrna)
-        onehot_mi = get_onehot_embedding(self.mirna)
+        # onehot_m = get_onehot_embedding(self.reverse_mrna)
+        # onehot_mi = get_onehot_embedding(self.mirna)
         
         pairing_m, pairing_mi = get_interaction_map(self.mirna,self.reverse_mrna)
 
         ND_m = to_ND(self.reverse_mrna)
         ND_mi = to_ND(self.mirna)
 
-        # C2_m = to_C2(self.reverse_mrna)
-        # C2_mi = to_C2(self.mirna)
+        C2_m = to_C2(self.reverse_mrna)
+        C2_mi = to_C2(self.mirna)
 
-        # NCP_m = to_NCP(self.reverse_mrna)
-        # NCP_mi = to_NCP(self.mirna)
+        NCP_m = to_NCP(self.reverse_mrna)
+        NCP_mi = to_NCP(self.mirna)
 
-        onehot_m  = torch.tensor(onehot_m, dtype=torch.float32).to(device)
-        onehot_mi = torch.tensor(onehot_mi, dtype=torch.float32).to(device)
+        # onehot_m  = torch.tensor(onehot_m, dtype=torch.float32).to(device)
+        # onehot_mi = torch.tensor(onehot_mi, dtype=torch.float32).to(device)
         
-        # NCP_m = torch.tensor(NCP_m, dtype=torch.float32).to(device)
-        # NCP_mi = torch.tensor(NCP_mi, dtype=torch.float32).to(device)
+        C2_m = torch.tensor(C2_m, dtype=torch.float32).to(device)
+        C2_mi = torch.tensor(C2_mi, dtype=torch.float32).to(device)
 
-        pairing_m = torch.tensor(pairing_m, dtype=torch.float32).to(device)
-        pairing_mi = torch.tensor(pairing_mi, dtype=torch.float32).to(device)
+        NCP_m = torch.tensor(NCP_m, dtype=torch.float32).to(device)
+        NCP_mi = torch.tensor(NCP_mi, dtype=torch.float32).to(device)
 
         ND_m = torch.tensor(ND_m, dtype=torch.float32).to(device)
         ND_mi = torch.tensor(ND_mi, dtype=torch.float32).to(device)
 
+        pairing_m = torch.tensor(pairing_m, dtype=torch.float32).to(device)
+        pairing_mi = torch.tensor(pairing_mi, dtype=torch.float32).to(device)
+
         label = torch.tensor(self.label, dtype=torch.float32).to(device)
         
         return {
-                'onehot_m': onehot_m,
-                'onehot_mi': onehot_mi,
-                # 'NCP_m' : NCP_m,
-                # 'NCP_mi' : NCP_mi,
+                # 'onehot_m': onehot_m,
+                # 'onehot_mi': onehot_mi,
+                'C2_m' : C2_m,
+                'C2_mi' : C2_mi,
+                'NCP_m' : NCP_m,
+                'NCP_mi' : NCP_mi,
                 'ND_m' : ND_m,
                 'ND_mi' : ND_mi,
                 'pairing_m': pairing_m,
@@ -90,10 +95,10 @@ class MJnet(nn.Module):
         self.batch_norm1 = nn.BatchNorm1d(16)
         self.fc2 = nn.Linear(16, output_size)
 
-    def forward(self, onehot_m, onehot_mi, pairing_m, pairing_mi, ND_m, ND_mi):
+    def forward(self, C2_m, C2_mi, NCP_m, NCP_mi, ND_m, ND_mi, pairing_m, pairing_mi):
         # 将pairing特征与one-hot编码拼接，形成5维输入 (4维one-hot + 1维pairing)
-        m_input = torch.cat((onehot_m, ND_m.unsqueeze(-1), pairing_m.unsqueeze(-1)), dim=-1)  # (batch_size, seq_len, 5)
-        mi_input = torch.cat((onehot_mi, ND_mi.unsqueeze(-1), pairing_mi.unsqueeze(-1)), dim=-1)
+        m_input = torch.cat((C2_m, NCP_m.unsqueeze(-1), ND_m.unsqueeze(-1), pairing_m.unsqueeze(-1)), dim=-1)  # (batch_size, seq_len, 5)
+        mi_input = torch.cat((C2_mi, NCP_mi.unsqueeze(-1), ND_mi.unsqueeze(-1), pairing_mi.unsqueeze(-1)), dim=-1)
 
         # Bi-directional GRU Encoder
         m_emb, _ = self.gru_m(m_input)  # Output shape: (batch_size, seq_len, 2 * hidden_size)
@@ -179,8 +184,8 @@ def Deep_train(model, dataloader, optimizer, criterion):
     for i, data in enumerate(tqdm(dataloader, desc="Training", leave=False)):
         counter += 1
 
-        features1, features2, features3, features4, target = data['onehot_m'], data['onehot_mi'], data['pairing_m'], data['pairing_mi'], data['label']
-        features5, features6 = data['ND_m'], data['ND_mi']
+        features1, features2, features3, features4, target = data['C2_m'], data['C2_mi'], data['NCP_m'], data['NCP_mi'], data['label']
+        features5, features6, features7, features8= data['ND_m'], data['ND_mi'], data['pairing_m'], data['pairing_mi']
 
         # 将特征和标签移动到与模型相同的设备
         features1 = features1.to(device)
@@ -189,10 +194,12 @@ def Deep_train(model, dataloader, optimizer, criterion):
         features4 = features4.to(device)
         features5 = features5.to(device)
         features6 = features6.to(device)
+        features7 = features7.to(device)
+        features8 = features8.to(device)
         target = target.to(device)
 
         target = target.unsqueeze(1)
-        outputs = model(features1, features2, features5, features6, features3, features4).to(device)
+        outputs = model(features1, features2, features3, features4, features5, features6, features7, features8).to(device)
         loss = criterion(outputs,target)
         train_loss += loss.item()
         optimizer.zero_grad()
@@ -212,8 +219,8 @@ def Deep_validate(model, dataloader, criterion):
     with torch.no_grad():
         for i, data in enumerate(tqdm(dataloader, desc="Validating", leave=False)):
             counter += 1
-            features1, features2, features3, features4, target = data['onehot_m'], data['onehot_mi'], data['pairing_m'], data['pairing_mi'],data['label']
-            features5, features6 = data['ND_m'], data['ND_mi']
+            features1, features2, features3, features4, target = data['C2_m'], data['C2_mi'], data['NCP_m'], data['NCP_mi'], data['label']
+            features5, features6, features7, features8= data['ND_m'], data['ND_mi'], data['pairing_m'], data['pairing_mi']
 
             # 将特征和标签移动到与模型相同的设备
             features1 = features1.to(device)
@@ -222,11 +229,12 @@ def Deep_validate(model, dataloader, criterion):
             features4 = features4.to(device)
             features5 = features5.to(device)
             features6 = features6.to(device)
-
+            features7 = features7.to(device)
+            features8 = features8.to(device)
             target = target.to(device)
-            target = target.unsqueeze(1)
 
-            outputs = model(features1, features2, features5, features6, features3, features4).to(device)
+            target = target.unsqueeze(1)
+            outputs = model(features1, features2, features3, features4, features5, features6, features7, features8).to(device)
             loss = criterion(outputs,target)
 
             val_loss += loss.item()
@@ -327,46 +335,58 @@ def get_cts(rmrna, stepsize):
 def kmers_predict(kmers,mirna,model):
 
     mirna = mirna + 'X'*(26-len(mirna))
-    fea_m = []
-    fea_mi = []
+    fea_C2_m = []
+    fea_C2_mi = []
+    fea_NCP_m = []
+    fea_NCP_mi = []
+    fea_ND_m = []
+    fea_ND_mi = []
     fea_pairing_m = []
     fea_pairing_mi = []
-    fea1_m = []
-    fea1_mi = []
+    
 
     if len(kmers) == 0:
         return 0
     else:
         for i in kmers:
-            onehot_m = get_onehot_embedding(i)
-            onehot_mi = get_onehot_embedding(mirna)
-            # NCP_m = to_NCP(i)
-            # NCP_mi = to_NCP(mirna)
+            # onehot_m = get_onehot_embedding(i)
+            # onehot_mi = get_onehot_embedding(mirna)
+            C2_m = to_C2(i)
+            C2_mi = to_C2(mirna)
+
+            NCP_m = to_NCP(i)
+            NCP_mi = to_NCP(mirna)
+
+            ND_m = to_ND(i)
+            ND_mi = to_ND(mirna)
             if 'X' in i:
                 pairing_m, pairing_mi = get_interaction_map_for_test_short(mirna, i)
             else:
                 pairing_m, pairing_mi = get_interaction_map_for_test(mirna, i)
-            ND_m = to_ND(i)
-            ND_mi = to_ND(mirna)
-
-            # fea_m.append(NCP_m)
-            # fea_mi.append(NCP_mi)
-            fea_m.append(onehot_m)
-            fea_mi.append(onehot_mi)
+            
+            fea_C2_m.append(C2_m)
+            fea_C2_mi.append(C2_mi)
+            fea_NCP_m.append(NCP_m)
+            fea_NCP_mi.append(NCP_mi)
+            # fea_m.append(onehot_m)
+            # fea_mi.append(onehot_mi)
+            fea_ND_m.append(ND_m)
+            fea_ND_mi.append(ND_mi)
             fea_pairing_m.append(pairing_m)
             fea_pairing_mi.append(pairing_mi)
-            fea1_m.append(ND_m)
-            fea1_mi.append(ND_mi)
+            
 
-        fea_m = torch.tensor(np.array(fea_m), dtype=torch.float32).to(device)
-        fea_mi = torch.tensor(np.array(fea_mi), dtype=torch.float32).to(device)
+        fea_C2_m = torch.tensor(np.array(fea_C2_m), dtype=torch.float32).to(device)
+        fea_C2_mi = torch.tensor(np.array(fea_C2_mi), dtype=torch.float32).to(device)
+        fea_NCP_m = torch.tensor(np.array(fea_NCP_m), dtype=torch.float32).to(device)
+        fea_NCP_mi = torch.tensor(np.array(fea_NCP_mi), dtype=torch.float32).to(device)
+        fea_ND_m = torch.tensor(np.array(fea_ND_m), dtype=torch.float32).to(device)
+        fea_ND_mi = torch.tensor(np.array(fea_ND_mi), dtype=torch.float32).to(device)
         fea_pairing_m = torch.tensor(np.array(fea_pairing_m), dtype=torch.float32).to(device)
         fea_pairing_mi = torch.tensor(np.array(fea_pairing_mi), dtype=torch.float32).to(device)
-        fea1_m = torch.tensor(np.array(fea1_m), dtype=torch.float32).to(device)
-        fea1_mi = torch.tensor(np.array(fea1_mi), dtype=torch.float32).to(device)
-
+        
         model = model.to(device)
-        pros = model(fea_m, fea_mi, fea1_m, fea1_mi, fea_pairing_m, fea_pairing_mi ).detach().cpu().numpy().tolist()
+        pros = model(fea_C2_m, fea_C2_mi, fea_NCP_m, fea_NCP_mi, fea_ND_m, fea_ND_mi, fea_pairing_m, fea_pairing_mi ).detach().cpu().numpy().tolist()
         pppp = decision_for_whole(pros)
 
         return pppp
