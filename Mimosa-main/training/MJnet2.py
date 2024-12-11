@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 
 from sklearn.metrics import recall_score,f1_score
-from sklearn.metrics import accuracy_score,average_precision_score
+from sklearn.metrics import accuracy_score,average_precision_score, precision_score
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from utils import *
@@ -88,7 +88,7 @@ class MJnet(nn.Module):
         # Cross attention mechanism (hidden_size * 2 due to bidirectional GRU)
         self.cross_attention = nn.MultiheadAttention(hidden_size * 2, num_heads, dropout=dropout)
 
-        
+        # self.batch_norm1 = nn.BatchNorm1d(40)
         # Fully connected layers for final classification
         self.fc1 = nn.Linear(40, 16)
         self.dropout = nn.Dropout(0.1)
@@ -97,8 +97,8 @@ class MJnet(nn.Module):
 
     def forward(self, C2_m, C2_mi, NCP_m, NCP_mi, ND_m, ND_mi, pairing_m, pairing_mi):
         # 将pairing特征与one-hot编码拼接，形成5维输入 (4维one-hot + 1维pairing)
-        m_input = torch.cat((C2_m, NCP_m.unsqueeze(-1), ND_m.unsqueeze(-1), pairing_m.unsqueeze(-1)), dim=-1)  # (batch_size, seq_len, 5)
-        mi_input = torch.cat((C2_mi, NCP_mi.unsqueeze(-1), ND_mi.unsqueeze(-1), pairing_mi.unsqueeze(-1)), dim=-1)
+        m_input = torch.cat((C2_m, NCP_m, ND_m.unsqueeze(-1), pairing_m.unsqueeze(-1)), dim=-1)  # (batch_size, seq_len, 5)
+        mi_input = torch.cat((C2_mi, NCP_mi, ND_mi.unsqueeze(-1), pairing_mi.unsqueeze(-1)), dim=-1)
 
         # Bi-directional GRU Encoder
         m_emb, _ = self.gru_m(m_input)  # Output shape: (batch_size, seq_len, 2 * hidden_size)
@@ -113,7 +113,7 @@ class MJnet(nn.Module):
 
         # Mean pooling after attention, followed by fully connected layers
         output = cross_attend.permute(1, 0, 2).mean(dim=2)
-
+        # output = self.batch_norm1(output)
         # Classification
         output = self.fc1(output)
         output = self.dropout(output)
@@ -253,7 +253,7 @@ def Deep_validate(model, dataloader, criterion):
         val_total_loss = val_loss/counter
 
         acc = accuracy_score(all_targets, all_predictions)
-        pre = average_precision_score(all_targets, all_predictions)
+        pre = precision_score(all_targets, all_predictions)
         recall = recall_score(all_targets,all_predictions)
         spec = specificity_score(all_targets,all_predictions)
         f1 = f1_score(all_targets,all_predictions)
@@ -273,9 +273,9 @@ def Deep_validate(model, dataloader, criterion):
 
 def perform_train(filepath):
     # train positive: 26995, train negative: 27469, val positive: 2193, val negative: 2136
-    batchsize = 256
-    learningrate = 1e-4
-    epochs = 40
+    batchsize = 128
+    learningrate = 4e-5
+    epochs = 50
     train, val = read_data(filepath)
 
     train_dataset = myDataset(train)
@@ -285,7 +285,7 @@ def perform_train(filepath):
     
 
     # model = Transformer(input_size=5, hidden_size=64, num_layers=16, num_heads=8, dropout=0.1, output_size=2).to(device)
-    model = MJnet(input_size = 6, hidden_size = 128, num_layers = 2, num_heads = 8, dropout = 0.3, output_size=1).to(device)
+    model = MJnet(input_size = 7, hidden_size = 128, num_layers = 2, num_heads = 8, dropout = 0.3, output_size=1).to(device)
     # criterion = nn.CrossEntropyLoss()
     criterion = nn.BCEWithLogitsLoss()
 
@@ -430,7 +430,7 @@ def perform_test(pathfile, stepsize, model_type):
     print(y_true)
     print(y_pred)
     acc = accuracy_score(y_true, y_pred)
-    pre = average_precision_score(y_true, y_pred)
+    pre = precision_score(y_true, y_pred)
     recall = recall_score(y_true, y_pred)
     spec = specificity_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred)

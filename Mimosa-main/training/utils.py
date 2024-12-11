@@ -389,5 +389,5 @@ def specificity_score(y_true, y_pred):
 def NPV(y_true,y_pred):
     '''define the evaluation metric: NPV'''
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-    ppv = tn/(tn+fn)
-    return ppv
+    NPV = tn/(tn+fn)
+    return NPV
