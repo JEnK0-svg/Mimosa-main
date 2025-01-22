@@ -111,7 +111,7 @@ def get_embedding(rna):
     return map
 
 
-def get_onehot_embedding(rna):
+def to_Onehot(rna):
     '''Generate one-hot encoding for RNA sequence using a one-hot dictionary.'''
     # 构建一个直接映射到One-Hot编码的词典
     onehot_map = []
